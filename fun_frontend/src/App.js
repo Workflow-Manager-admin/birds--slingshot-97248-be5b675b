@@ -29,13 +29,25 @@ export default function App() {
 
   // Preload sound effects (simple .wav base64)
   useEffect(() => {
-    // Only load once
-    slingSound.current = new window.Audio(slingshot_wav); // slingshot
-    popSound.current = new window.Audio(pop_wav); // pop block/pig
-    pigSound.current = new window.Audio(oink_wav);
-    winSound.current = new window.Audio(win_wav);
-    failSound.current = new window.Audio(fail_wav);
-    setSoundsLoaded(true);
+    // Only load once and if the source strings look valid
+    function isValidWavData(src) {
+      return typeof src === 'string' && src.startsWith("data:audio/wav;base64,") && src.length > 40;
+    }
+
+    try {
+      if (isValidWavData(slingshot_wav)) slingSound.current = new window.Audio(slingshot_wav);
+      if (isValidWavData(pop_wav)) popSound.current = new window.Audio(pop_wav);
+      if (isValidWavData(oink_wav)) pigSound.current = new window.Audio(oink_wav);
+      if (isValidWavData(win_wav)) winSound.current = new window.Audio(win_wav);
+      if (isValidWavData(fail_wav)) failSound.current = new window.Audio(fail_wav);
+      setSoundsLoaded(
+        isValidWavData(slingshot_wav) && isValidWavData(pop_wav) &&
+        isValidWavData(oink_wav) && isValidWavData(win_wav) && isValidWavData(fail_wav)
+      );
+    } catch (e) {
+      // In case of assignment failure, disable sound
+      setSoundsLoaded(false);
+    }
   }, []);
 
   // Score tracking per level
