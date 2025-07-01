@@ -198,6 +198,11 @@ function AngryBirdsGame({
   sounds,
   colors
 }) {
+  // Defensive: If no level or birds, use safe defaults
+  const safeLevel = level && typeof level === "object" && typeof level.birds === "object" ? level : {
+    birds: [{}], pigs: [], blocks: []
+  };
+
   // Game constants
   const canvasWidth = 420;
   const canvasHeight = 260;
@@ -211,8 +216,8 @@ function AngryBirdsGame({
   const SLING_ANCHOR = { x: 60, y: 174 };
 
   // Game state
-  const [entities, setEntities] = useState(initEntities(level));
-  const [birdsLeft, setBirdsLeft] = useState(level.birds.length);
+  const [entities, setEntities] = useState(() => initEntities(safeLevel));
+  const [birdsLeft, setBirdsLeft] = useState(safeLevel.birds.length);
   const [drag, setDrag] = useState({ isAiming: false, sx: 0, sy: 0, dx: 0, dy: 0 });
   const [flying, setFlying] = useState(false);         // if a bird is in the air
   const [currentBirdIdx, setCurrentBirdIdx] = useState(0);
@@ -225,8 +230,9 @@ function AngryBirdsGame({
 
   // Reset game entities when new level/ restart
   useEffect(() => {
-    setEntities(initEntities(level));
-    setBirdsLeft(level.birds.length);
+    const actualLevel = level && typeof level === "object" && typeof level.birds === "object" ? level : { birds: [{}], pigs: [], blocks: [] };
+    setEntities(initEntities(actualLevel));
+    setBirdsLeft(actualLevel.birds.length);
     setFlying(false);
     setGameState('playing');
     setCurrentBirdIdx(0);
@@ -248,7 +254,10 @@ function AngryBirdsGame({
 
   // Expose draw and updatePhysics as helpers
   function draw() {
+    if (!canvasRef.current) return;
     const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
     // Sky background
@@ -412,9 +421,9 @@ function AngryBirdsGame({
   // Physics simulation and collision
   function updatePhysics() {
     let newEntities = { ...entities };
-    let birdsArr = [...newEntities.birds];
-    let pigsArr = [...newEntities.pigs];
-    let blocksArr = [...newEntities.blocks];
+    let birdsArr = Array.isArray(newEntities.birds) ? [...newEntities.birds] : [];
+    let pigsArr = Array.isArray(newEntities.pigs) ? [...newEntities.pigs] : [];
+    let blocksArr = Array.isArray(newEntities.blocks) ? [...newEntities.blocks] : [];
 
     // Only update if bird in flight
     if (flying && birdsArr[currentBirdIdx] && birdsArr[currentBirdIdx].active) {
@@ -507,6 +516,7 @@ function AngryBirdsGame({
   // Drag handling: on mouse/touch drag on slingshot, launch on release
   function onPointerDown(e) {
     if (flying || gameState !== 'playing') return;
+    if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     let px = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
     let py = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
@@ -516,7 +526,7 @@ function AngryBirdsGame({
     }
   }
   function onPointerMove(e) {
-    if (!drag.isAiming) return;
+    if (!drag.isAiming || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     let px = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
     let py = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
@@ -665,15 +675,18 @@ const levelsPreset = [
 ];
 
 function initEntities(level) {
-  // Keep birds array, pigs, and blocks with some attributes
+  // Defensive: ensure birds/pigs/blocks are always arrays
+  const birds = Array.isArray(level?.birds) ? level.birds : [{}];
+  const pigs = Array.isArray(level?.pigs) ? level.pigs : [];
+  const blocks = Array.isArray(level?.blocks) ? level.blocks : [];
   return {
-    birds: level.birds.map(() => ({
+    birds: birds.map(() => ({
       x: 60, y: 174, vx: 0, vy: 0, active: true, resting: false,
     })),
-    pigs: level.pigs.map(p => ({
+    pigs: pigs.map(p => ({
       ...p, active: true,
     })),
-    blocks: level.blocks.map(b => ({
+    blocks: blocks.map(b => ({
       ...b, active: true, rotation: b.rot,
     }))
   };
